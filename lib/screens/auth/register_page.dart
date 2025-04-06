@@ -69,7 +69,9 @@ class _RegisterPageState extends State<RegisterPage>
           );
         }
       } else if (mounted && authController.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(authController.error!)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(authController.error!)));
       }
     }
   }
@@ -165,7 +167,8 @@ class _RegisterPageState extends State<RegisterPage>
                             labelText: 'Full Name',
                             hintText: 'Enter your full name',
                             prefixIcon: Icons.person_outline,
-                            validator: (value) => Validators.validateName(value),
+                            validator:
+                                (value) => Validators.validateName(value),
                           ),
                           const SizedBox(height: 16),
 
@@ -175,7 +178,8 @@ class _RegisterPageState extends State<RegisterPage>
                             labelText: 'Email',
                             hintText: 'Enter your email address',
                             prefixIcon: Icons.email_outlined,
-                            validator: (value) => Validators.validateEmail(value),
+                            validator:
+                                (value) => Validators.validateEmail(value),
                           ),
                           const SizedBox(height: 16),
 
@@ -199,7 +203,8 @@ class _RegisterPageState extends State<RegisterPage>
                                 });
                               },
                             ),
-                            validator: (value) => Validators.validatePassword(value),
+                            validator:
+                                (value) => Validators.validatePassword(value),
                           ),
                           const SizedBox(height: 16),
 
@@ -219,7 +224,8 @@ class _RegisterPageState extends State<RegisterPage>
                               ),
                               onPressed: () {
                                 setState(() {
-                                  _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword;
                                 });
                               },
                             ),
@@ -238,7 +244,8 @@ class _RegisterPageState extends State<RegisterPage>
                           // Register button
                           CustomButton(
                             text: 'REGISTER',
-                            onPressed: authController.isLoading ? null : _register,
+                            onPressed:
+                                authController.isLoading ? null : _register,
                             isLoading: authController.isLoading,
                           ),
                         ],
