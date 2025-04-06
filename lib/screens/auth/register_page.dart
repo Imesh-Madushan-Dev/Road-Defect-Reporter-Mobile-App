@@ -247,6 +247,8 @@ class _RegisterPageState extends State<RegisterPage>
                             onPressed:
                                 authController.isLoading ? null : _register,
                             isLoading: authController.isLoading,
+                            height: 50,
+                            width: double.infinity,
                           ),
                         ],
                       ),

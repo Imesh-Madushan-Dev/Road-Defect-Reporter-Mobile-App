@@ -5,6 +5,7 @@ class CustomButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
   final double height;
+  final double width;
 
   const CustomButton({
     super.key,
@@ -12,6 +13,7 @@ class CustomButton extends StatelessWidget {
     this.onPressed,
     this.isLoading = false,
     this.height = 50,
+    this.width = double.infinity,
   });
 
   @override
@@ -20,6 +22,7 @@ class CustomButton extends StatelessWidget {
     
     return SizedBox(
       height: height,
+      width: width,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
