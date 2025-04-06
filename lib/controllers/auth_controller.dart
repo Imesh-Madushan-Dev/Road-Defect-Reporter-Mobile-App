@@ -95,6 +95,22 @@ class AuthController with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateUserProfile({required String name}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await _authService.updateUserProfile(name: name);
+      await _loadUserData(); // Refresh user data after update
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../utils/constants.dart';
+import 'personal_information_page.dart';
+import 'my_reports_page.dart';
+import 'safety_instructions_page.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +15,7 @@ class ProfilePage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -29,15 +32,18 @@ class ProfilePage extends StatelessWidget {
                 child: Column(
                   children: [
                     // Avatar and name
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: theme.colorScheme.primary.withOpacity(
-                        0.2,
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 60,
-                        color: Colors.white,
+                    Hero(
+                      tag: 'profile-avatar',
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: theme.colorScheme.primary.withOpacity(
+                          0.2,
+                        ),
+                        child: Icon(
+                          Icons.person,
+                          size: 60,
+                          color: theme.colorScheme.primary,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -109,23 +115,59 @@ class ProfilePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
+                      context,
                       icon: Icons.person_outline,
                       title: 'Personal Information',
                       subtitle: 'Name, email, and account details',
-                      onTap: () {
-                        // Navigate to edit profile
-                      },
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const PersonalInformationPage(),
+                            ),
+                          ),
                     ),
                     _buildInfoCard(
-                      icon: Icons.favorite_border,
+                      context,
+                      icon: Icons.report_outlined,
                       title: 'My Reports',
                       subtitle: 'View all your road defect reports',
-                      onTap: () {
-                        // Navigate to reports
-                      },
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyReportsPage(),
+                            ),
+                          ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Help & Safety',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoCard(
+                      context,
+                      icon: Icons.health_and_safety_outlined,
+                      title: 'Safety Instructions',
+                      subtitle: 'Guidelines for safe defect reporting',
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const SafetyInstructionsPage(),
+                            ),
+                          ),
+                    ),
+
+                    const SizedBox(height: 24),
                     Text(
                       'Session',
                       style: TextStyle(
@@ -154,7 +196,8 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard({
+  Widget _buildInfoCard(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
@@ -167,16 +210,45 @@ class ProfilePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.grey.withOpacity(0.2)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: Colors.grey.withOpacity(0.1),
-          child: Icon(icon, color: Colors.grey[700]),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -190,24 +262,69 @@ class ProfilePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.red.shade200),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: Colors.red.shade100,
-          child: Icon(Icons.logout, color: Colors.red[700]),
-        ),
-        title: Text(
-          'Sign Out',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red[700]),
-        ),
-        subtitle: Text(
-          'Logout from your account',
-          style: TextStyle(color: Colors.red[400]),
-        ),
-        trailing: Icon(Icons.chevron_right, color: Colors.red[300]),
+      child: InkWell(
         onTap: () async {
-          await authController.signOut();
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+          );
+
+          if (confirmed == true) {
+            await authController.signOut();
+          }
         },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.logout, color: Colors.red[700]),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sign Out',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Logout from your account',
+                      style: TextStyle(fontSize: 14, color: Colors.red[400]),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.red[300]),
+            ],
+          ),
+        ),
       ),
     );
   }

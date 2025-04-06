@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:flutter/rendering.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/defect_controller.dart';
 import '../../models/defect_model.dart';
@@ -8,18 +10,20 @@ import 'defect_details_page.dart';
 import 'report_defect_page.dart';
 
 class DefectListView extends StatefulWidget {
-  const DefectListView({Key? key}) : super(key: key);
+  const DefectListView({super.key});
 
   @override
-  _DefectListViewState createState() => _DefectListViewState();
+  DefectListViewState createState() => DefectListViewState();
 }
 
-class _DefectListViewState extends State<DefectListView>
+class DefectListViewState extends State<DefectListView>
     with SingleTickerProviderStateMixin {
   String? _sortOption = 'newest';
   String? _statusFilter;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  final ScrollController _scrollController = ScrollController();
+  bool _showFab = true;
 
   @override
   void initState() {
@@ -35,10 +39,23 @@ class _DefectListViewState extends State<DefectListView>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+
+    // Setup scroll listener for FAB
+    _scrollController.addListener(() {
+      if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.reverse) {
+        if (_showFab) setState(() => _showFab = false);
+      }
+      if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.forward) {
+        if (!_showFab) setState(() => _showFab = true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -55,118 +72,155 @@ class _DefectListViewState extends State<DefectListView>
     }
   }
 
-  List<DefectModel> _getSortedAndFilteredDefects(List<DefectModel> defects) {
-    // First apply filters
-    List<DefectModel> filteredDefects = defects;
-
-    if (_statusFilter != null) {
-      filteredDefects =
-          filteredDefects
-              .where(
-                (defect) =>
-                    defect.status.toLowerCase() == _statusFilter!.toLowerCase(),
-              )
-              .toList();
-    }
-
-    // Then sort
-    switch (_sortOption) {
-      case 'newest':
-        filteredDefects.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        break;
-      case 'oldest':
-        filteredDefects.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        break;
-      case 'priority':
-        filteredDefects.sort(
-          (a, b) => b.priority.index.compareTo(a.priority.index),
-        );
-        break;
-    }
-
-    return filteredDefects;
-  }
 
   @override
   Widget build(BuildContext context) {
     final defectController = Provider.of<DefectController>(context);
     final authController = Provider.of<AuthController>(context);
+    final theme = Theme.of(context);
 
     if (authController.user == null) {
-      return Center(
+      return _buildLoginPrompt();
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: NestedScrollView(
+        controller: _scrollController,
+        headerSliverBuilder:
+            (context, innerBoxIsScrolled) => [
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: true,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: theme.scaffoldBackgroundColor,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Text(
+                    'My Reports',
+                    style: TextStyle(
+                      color: theme.textTheme.titleLarge?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  centerTitle: false,
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.filter_list_rounded),
+                    tooltip: 'Filter reports',
+                    onPressed: () => _showFilterDialog(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh reports',
+                    onPressed: _loadUserDefects,
+                  ),
+                ],
+              ),
+            ],
+        body: FadeTransition(
+          opacity: _fadeAnimation,
+          child: RefreshIndicator(
+            onRefresh: () async => _loadUserDefects(),
+            child:
+                defectController.isLoading
+                    ? _buildLoadingState()
+                    : Column(
+                      children: [
+                        _buildSortBar(),
+                        Expanded(
+                          child:
+                              defectController.userDefects.isEmpty
+                                  ? _buildEmptyState()
+                                  : ListView.builder(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount:
+                                        defectController.userDefects.length,
+                                    itemBuilder: (context, index) {
+                                      final defect =
+                                          defectController.userDefects[index];
+                                      return _buildDefectCard(context, defect);
+                                    },
+                                  ),
+                        ),
+                      ],
+                    ),
+          ),
+        ),
+      ),
+      
+    );
+  }
+
+  Widget _buildLoginPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'You need to be logged in to view your reports',
-              style: TextStyle(fontSize: 16),
+            Icon(
+              Icons.account_circle_outlined,
+              size: 64,
+              color: Colors.grey[400],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            const SizedBox(height: 24),
+            Text(
+              'Sign in to View Your Reports',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Please sign in to access your road defect reports and contribute to improving our infrastructure.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
               onPressed:
                   () => Navigator.pushReplacementNamed(context, '/login'),
-              child: const Text('Go to Login'),
+              icon: const Icon(Icons.login),
+              label: const Text('Sign In'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),
-      );
-    }
-
-    // Get filtered and sorted defects
-    final defects = _getSortedAndFilteredDefects(defectController.userDefects);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Reports',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list_rounded),
-            tooltip: 'Filter reports',
-            onPressed: () => _showFilterDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh reports',
-            onPressed: _loadUserDefects,
-          ),
-        ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            _loadUserDefects();
-          },
-          child:
-              defectController.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : defects.isEmpty
-                  ? _buildEmptyState()
-                  : Column(
-                    children: [
-                      _buildSortBar(),
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: defects.length,
-                          itemBuilder: (context, index) {
-                            final defect = defects[index];
-                            return _buildDefectCard(context, defect);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-        ),
-      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -247,7 +301,16 @@ class _DefectListViewState extends State<DefectListView>
   Widget _buildSortBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.grey[50],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey[200]!,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
           Text(
@@ -437,8 +500,11 @@ class _DefectListViewState extends State<DefectListView>
   Widget _buildDefectCard(BuildContext context, DefectModel defect) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -446,106 +512,68 @@ class _DefectListViewState extends State<DefectListView>
             MaterialPageRoute(
               builder: (_) => DefectDetailsPage(defectId: defect.id),
             ),
-          ).then((_) => setState(() {})); // Refresh when coming back
+          ).then((_) => setState(() {}));
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (defect.imageUrls.isNotEmpty)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    child: Hero(
-                      tag: 'defect-image-${defect.id}',
-                      child: Image.network(
-                        defect.imageUrls[0],
-                        height: 180,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 180,
-                            color: Colors.grey[100],
-                            child: const Center(
-                              child: CircularProgressIndicator(),
+              Hero(
+                tag: 'defect-card-${defect.id}',
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      defect.imageUrls[0],
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Shimmer.fromColors(
+                          baseColor: Colors.grey[300]!,
+                          highlightColor: Colors.grey[100]!,
+                          child: Container(color: Colors.white),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: Icon(
+                              Icons.error_outline,
+                              size: 32,
+                              color: Colors.grey,
                             ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 180,
-                            color: Colors.grey[100],
-                            child: const Center(
-                              child: Icon(
-                                Icons.error_outline,
-                                size: 32,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  // Date indicator
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        DateFormat('MMM d, yyyy').format(defect.timestamp),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Status indicator
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: _buildStatusChip(defect.status),
-                  ),
-                ],
+                ),
               ),
-            Container(
+            Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // If no image, show status and date at top
-                  if (defect.imageUrls.isEmpty)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          DateFormat('MMM d, yyyy').format(defect.timestamp),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
+                  Row(
+                    children: [
+                      _buildStatusChip(defect.status),
+                      const Spacer(),
+                      Text(
+                        DateFormat('MMM d, yyyy').format(defect.timestamp),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
                         ),
-                        _buildStatusChip(defect.status),
-                      ],
-                    ),
-                  if (defect.imageUrls.isEmpty) const SizedBox(height: 12),
-
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     defect.title,
                     style: const TextStyle(
@@ -565,29 +593,33 @@ class _DefectListViewState extends State<DefectListView>
                   ),
                   const SizedBox(height: 16),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildPriorityIndicator(defect.priority),
-                      // Location preview
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 14,
-                            color: Colors.grey[600],
+                      const Spacer(),
+                      if (defect.address != null && defect.address!.isNotEmpty)
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  _truncateAddress(defect.address!),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            defect.address != null && defect.address!.isNotEmpty
-                                ? _truncateAddress(defect.address!)
-                                : 'View location',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                 ],

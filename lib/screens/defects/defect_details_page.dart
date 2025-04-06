@@ -3,13 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../controllers/defect_controller.dart';
 import '../../models/defect_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DefectDetailsPage extends StatefulWidget {
   final String defectId;
 
-  const DefectDetailsPage({Key? key, required this.defectId}) : super(key: key);
+  const DefectDetailsPage({super.key, required this.defectId});
 
   @override
   State<DefectDetailsPage> createState() => _DefectDetailsPageState();
@@ -19,66 +22,71 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
   bool _showFullDescription = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _showAppBarTitle = false;
+  String? _reporterName;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadReporterName();
+  }
+
+  void _onScroll() {
+    if (_scrollController.offset > 200 && !_showAppBarTitle) {
+      setState(() => _showAppBarTitle = true);
+    } else if (_scrollController.offset <= 200 && _showAppBarTitle) {
+      setState(() => _showAppBarTitle = false);
+    }
+  }
+
+  Future<void> _loadReporterName() async {
+    final defect = _findDefect(
+      Provider.of<DefectController>(context, listen: false),
+    );
+    if (defect != null) {
+      try {
+        final userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(defect.reportedBy)
+                .get();
+
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _reporterName = userDoc.data()?['name'] ?? 'Unknown User';
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading reporter name: $e');
+      }
+    }
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final defectController = Provider.of<DefectController>(context);
+    final theme = Theme.of(context);
 
     // Find the defect from either user's defects or all defects
     DefectModel? defect = _findDefect(defectController);
 
     if (defect == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'Defect Details',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              const Text(
-                'Defect not found',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'The defect you are looking for may have been deleted',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Go Back'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorState();
     }
 
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
-          // App Bar
           SliverAppBar(
             expandedHeight: 300,
             floating: false,
@@ -94,6 +102,17 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            title: AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: _showAppBarTitle ? 1.0 : 0.0,
+              child: Text(
+                defect.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             actions: [
@@ -113,8 +132,6 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
               background: _buildImageGallery(defect),
             ),
           ),
-
-          // Content
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +140,7 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
-                    vertical: 12,
+                    vertical: 16,
                   ),
                   decoration: BoxDecoration(
                     color: _getStatusColor(defect.status).withOpacity(0.1),
@@ -142,15 +159,28 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
                           Icon(
                             _getStatusIcon(defect.status),
                             color: _getStatusColor(defect.status),
-                            size: 20,
+                            size: 24,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Status: ${defect.status}',
-                            style: TextStyle(
-                              color: _getStatusColor(defect.status),
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Status',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                defect.status,
+                                style: TextStyle(
+                                  color: _getStatusColor(defect.status),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -169,110 +199,151 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
                       Text(
                         defect.title,
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Reported on ${DateFormat('MMMM d, yyyy').format(defect.timestamp)} at ${DateFormat('h:mm a').format(defect.timestamp)}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Description
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Icon(
-                            Icons.description_outlined,
-                            size: 20,
+                            Icons.calendar_today_outlined,
+                            size: 16,
                             color: Colors.grey[600],
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Description',
+                            DateFormat('MMMM d, yyyy').format(defect.timestamp),
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Icon(
+                            Icons.access_time_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('h:mm a').format(defect.timestamp),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 32),
+
                       GestureDetector(
                         onTap: () {
                           setState(() {
                             _showFullDescription = !_showFullDescription;
                           });
                         },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              defect.description,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black87,
-                                height: 1.5,
-                              ),
-                              maxLines: _showFullDescription ? null : 4,
-                              overflow:
-                                  _showFullDescription
-                                      ? TextOverflow.visible
-                                      : TextOverflow.ellipsis,
+                        child: AnimatedCrossFade(
+                          firstChild: Text(
+                            defect.description,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                              height: 1.5,
                             ),
-                            if (defect.description.split('\n').length > 4 ||
-                                defect.description.length > 200)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          secondChild: Text(
+                            defect.description,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                              height: 1.5,
+                            ),
+                          ),
+                          crossFadeState:
+                              _showFullDescription
+                                  ? CrossFadeState.showSecond
+                                  : CrossFadeState.showFirst,
+                          duration: const Duration(milliseconds: 300),
+                        ),
+                      ),
+                      if (defect.description.split('\n').length > 4 ||
+                          defect.description.length > 200)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _showFullDescription = !_showFullDescription;
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                Text(
                                   _showFullDescription
                                       ? 'Show less'
                                       : 'Show more',
                                   style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: theme.colorScheme.primary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Location with copyable coordinates
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 20,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Location',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
+                                Icon(
+                                  _showFullDescription
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
+                      const SizedBox(height: 32),
+
+                      // Location
+                      Text(
+                        'Location',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       if (defect.address != null && defect.address!.isNotEmpty)
-                        Text(
-                          defect.address!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black87,
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.location_on_outlined,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  defect.address!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       GestureDetector(
                         onTap: () {
                           Clipboard.setData(
@@ -287,8 +358,8 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                            horizontal: 16,
+                            vertical: 12,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
@@ -316,87 +387,23 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
                       // Reporter
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_outline,
-                            size: 20,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Reported By',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Text(
-                        defect.reportedBy,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
+                        'Reported By',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _buildReporterSection(defect),
                       const SizedBox(height: 32),
 
                       // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Map viewing would be implemented here',
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.map_outlined),
-                              label: const Text('View on Map'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          OutlinedButton.icon(
-                            onPressed: () => _shareDefect(context, defect),
-                            icon: const Icon(Icons.share_outlined),
-                            label: const Text('Share'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildActionButtons(defect),
                     ],
                   ),
                 ),
@@ -404,6 +411,55 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Defect Details',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'Defect not found',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The defect you are looking for may have been deleted',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -441,38 +497,53 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
             return GestureDetector(
               onTap:
                   () => _showFullScreenImage(context, defect.imageUrls, index),
-              child: Hero(
-                tag:
-                    index == 0
-                        ? 'defect-image-${defect.id}'
-                        : 'defect-image-${defect.id}-$index',
-                child: CachedNetworkImage(
-                  imageUrl: defect.imageUrls[index],
-                  fit: BoxFit.cover,
-                  placeholder:
-                      (context, url) => Container(
-                        color: Colors.black,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+              child:
+                  index == 0
+                      ? Hero(
+                        tag: 'defect-card-${defect.id}',
+                        child: CachedNetworkImage(
+                          imageUrl: defect.imageUrls[index],
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => Shimmer.fromColors(
+                                baseColor: Colors.grey[300]!,
+                                highlightColor: Colors.grey[100]!,
+                                child: Container(color: Colors.white),
+                              ),
+                          errorWidget:
+                              (context, url, error) => Container(
+                                color: Colors.grey[100],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.error_outline,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                        ),
+                      )
+                      : CachedNetworkImage(
+                        imageUrl: defect.imageUrls[index],
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Container(color: Colors.white),
                             ),
-                          ),
-                        ),
+                        errorWidget:
+                            (context, url, error) => Container(
+                              color: Colors.grey[100],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                       ),
-                  errorWidget:
-                      (context, url, error) => Container(
-                        color: Colors.black,
-                        child: const Center(
-                          child: Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                ),
-              ),
             );
           },
         ),
@@ -562,12 +633,12 @@ class _DefectDetailsPageState extends State<DefectDetailsPage> {
           left: 0,
           right: 0,
           child: Container(
-            height: 120,
+            height: 160,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
               ),
             ),
           ),
@@ -692,6 +763,140 @@ Reported on: ${DateFormat('MMMM d, yyyy').format(defect.timestamp)}
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  Widget _buildReporterSection(DefectModel defect) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withOpacity(0.1),
+            child: Icon(
+              Icons.person_outline,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Reported By',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 4),
+                _reporterName != null
+                    ? Text(
+                      _reporterName!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    )
+                    : Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: 120,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(DefectModel defect) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () => _openInMaps(defect),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('View on Map'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        OutlinedButton.icon(
+          onPressed: () => _shareDefect(context, defect),
+          icon: const Icon(Icons.share_outlined),
+          label: const Text(''),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            foregroundColor: Theme.of(context).colorScheme.primary,
+            side: BorderSide(color: Theme.of(context).colorScheme.primary),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openInMaps(DefectModel defect) async {
+    try {
+      final coordinates = defect.location.split(',');
+      if (coordinates.length != 2) return;
+
+      final lat = double.tryParse(coordinates[0].trim());
+      final lng = double.tryParse(coordinates[1].trim());
+
+      if (lat == null || lng == null) return;
+
+      final uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+      );
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open map'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error opening maps: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open map'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 }

@@ -23,20 +23,20 @@ class AppConstants {
   ];
 
   // Theme colors
-  static const Color primaryColor = Colors.blue;
-  static const Color secondaryColor = Colors.blueAccent;
+  static const Color primaryColor = Colors.indigo;
+  static const Color secondaryColor = Colors.indigo;
   static const Color accentColor = Colors.orange;
 
   // Status colors
   static const Color pendingColor = Colors.orange;
   static const Color inProgressColor = Colors.blue;
-  static const Color completedColor = Colors.green;
-  static const Color rejectedColor = Colors.red;
+  static const Color completedColor = Colors.greenAccent;
+  static const Color rejectedColor = Colors.redAccent;
 
   // Priority colors
-  static const Color lowPriorityColor = Colors.green;
-  static const Color mediumPriorityColor = Colors.orange;
-  static const Color highPriorityColor = Colors.red;
+  static const Color lowPriorityColor = Colors.greenAccent;
+  static const Color mediumPriorityColor = Colors.orangeAccent;
+  static const Color highPriorityColor = Colors.redAccent;
 
   // Asset paths
   static const String appLogoPath = 'assets/images/logo.png';

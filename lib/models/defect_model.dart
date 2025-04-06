@@ -28,16 +28,16 @@ class DefectModel {
   // Method to convert JSON to DefectModel
   factory DefectModel.fromJson(Map<String, dynamic> json) {
     return DefectModel(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      location: json['location'],
-      address: json['address'],
-      imageUrls: List<String>.from(json['imageUrls']),
-      reportedBy: json['reportedBy'],
-      timestamp: DateTime.parse(json['timestamp']),
-      status: json['status'],
-      priority: PriorityLevel.values.byName(json['priority']),
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      location: json['location'] as String,
+      address: json['address'] as String?,
+      imageUrls: (json['imageUrls'] as List).map((e) => e as String).toList(),
+      reportedBy: json['reportedBy'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      status: json['status'] as String,
+      priority: PriorityLevel.values.byName(json['priority'] as String),
     );
   }
 

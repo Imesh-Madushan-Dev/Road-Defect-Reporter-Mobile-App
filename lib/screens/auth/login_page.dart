@@ -8,10 +8,9 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../wrappers/error_msg.dart';
 import 'register_page.dart';
-import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -78,7 +77,6 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     final authController = Provider.of<AuthController>(context);
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: FadeTransition(

@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "defects": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$defectId": {
+      
+        ".validate": "newData.hasChildren(['id', 'title', 'description', 'location', 'imageUrls', 'reportedBy', 'timestamp', 'status', 'priority']) && 
+                     (!data.exists() || (data.child('status').val() != newData.child('status').val() ? 
+                        root.child('users').child(auth.uid).child('isAdmin').val() == true : 
+                        auth.uid == data.child('reportedBy').val()))"
+      }
+    },
+    "user-defects": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('isAdmin').val() == true)",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    }
+  }
+} 

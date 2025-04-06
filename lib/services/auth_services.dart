@@ -103,4 +103,22 @@ class AuthService {
       return null;
     }
   }
+
+  // Update user profile
+  Future<void> updateUserProfile({required String name}) async {
+    if (currentUser == null) throw Exception('No authenticated user found');
+
+    try {
+      await _firestore.collection('users').doc(currentUser!.uid).update({
+        'name': name,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      // Update display name in Firebase Auth
+      await currentUser!.updateDisplayName(name);
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
+    }
+  }
 }

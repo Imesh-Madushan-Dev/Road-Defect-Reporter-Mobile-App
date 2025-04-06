@@ -47,28 +47,32 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCncOpMrD0iVKLfhGO2qkqPAcCxr0XeOqs',
-    appId: '1:395362193833:web:6ed99bbf57b161561134b8',
-    messagingSenderId: '395362193833',
-    projectId: 'defects-capturing-app',
-    authDomain: 'defects-capturing-app.firebaseapp.com',
-    storageBucket: 'defects-capturing-app.firebasestorage.app',
+    apiKey: 'AIzaSyCinoCBUM9qtoebC4X_pTY8zeVeA58AlSc',
+    appId: '1:367468793802:web:076fd1a7e1fafb12260933',
+    messagingSenderId: '367468793802',
+    projectId: 'test-1234-f0d36',
+    authDomain: 'test-1234-f0d36.firebaseapp.com',
+    databaseURL: 'https://test-1234-f0d36-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'test-1234-f0d36.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB1j2KLa-rYaq2rnb-hhJevmnkzEsVb_jk',
-    appId: '1:395362193833:android:c49dffcfd696f50f1134b8',
-    messagingSenderId: '395362193833',
-    projectId: 'defects-capturing-app',
-    storageBucket: 'defects-capturing-app.firebasestorage.app',
+    apiKey: 'AIzaSyBgoEhL9UC19GSyRo6UfgWaz0-5sTVzxpM',
+    appId: '1:367468793802:android:58db2bec1dc30801260933',
+    messagingSenderId: '367468793802',
+    projectId: 'test-1234-f0d36',
+    databaseURL: 'https://test-1234-f0d36-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'test-1234-f0d36.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDHEYFHKKYQUbMYFhXNcx0TmDjazkOlhSw',
-    appId: '1:395362193833:ios:8507bfc95a3a34e01134b8',
-    messagingSenderId: '395362193833',
-    projectId: 'defects-capturing-app',
-    storageBucket: 'defects-capturing-app.firebasestorage.app',
+    apiKey: 'AIzaSyCF6AzahNlbUxOxKj8xuAu5IuuxjAd57zE',
+    appId: '1:367468793802:ios:579d9a598f5f677b260933',
+    messagingSenderId: '367468793802',
+    projectId: 'test-1234-f0d36',
+    databaseURL: 'https://test-1234-f0d36-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'test-1234-f0d36.firebasestorage.app',
     iosBundleId: 'com.example.exeAssignment',
   );
+
 }
