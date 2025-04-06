@@ -61,17 +61,12 @@ class DefectListViewState extends State<DefectListView>
   }
 
   void _loadUserDefects() {
-    final authController = Provider.of<AuthController>(context, listen: false);
     final defectController = Provider.of<DefectController>(
       context,
       listen: false,
     );
-
-    if (authController.user != null) {
-      defectController.loadUserDefects(authController.user!.uid);
-    }
+    defectController.loadAllDefects();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +80,7 @@ class DefectListViewState extends State<DefectListView>
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
+
       body: NestedScrollView(
         controller: _scrollController,
         headerSliverBuilder:
@@ -95,9 +91,10 @@ class DefectListViewState extends State<DefectListView>
                 pinned: true,
                 elevation: 0,
                 backgroundColor: theme.scaffoldBackgroundColor,
+                leading: SizedBox(),
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
-                    'My Reports',
+                    'All Reports',
                     style: TextStyle(
                       color: theme.textTheme.titleLarge?.color,
                       fontWeight: FontWeight.bold,
@@ -132,15 +129,14 @@ class DefectListViewState extends State<DefectListView>
                         _buildSortBar(),
                         Expanded(
                           child:
-                              defectController.userDefects.isEmpty
+                              defectController.defects.isEmpty
                                   ? _buildEmptyState()
                                   : ListView.builder(
                                     padding: const EdgeInsets.all(16),
-                                    itemCount:
-                                        defectController.userDefects.length,
+                                    itemCount: defectController.defects.length,
                                     itemBuilder: (context, index) {
                                       final defect =
-                                          defectController.userDefects[index];
+                                          defectController.defects[index];
                                       return _buildDefectCard(context, defect);
                                     },
                                   ),
@@ -150,7 +146,6 @@ class DefectListViewState extends State<DefectListView>
           ),
         ),
       ),
-      
     );
   }
 
@@ -240,7 +235,7 @@ class DefectListViewState extends State<DefectListView>
             Text(
               _statusFilter != null
                   ? 'No $_statusFilter reports found'
-                  : 'You haven\'t reported any road defects yet',
+                  : 'No road defect reports yet',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],

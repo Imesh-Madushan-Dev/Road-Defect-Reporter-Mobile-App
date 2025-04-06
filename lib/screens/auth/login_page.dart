@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../main.dart';
@@ -24,6 +25,16 @@ class _LoginPageState extends State<LoginPage>
   bool _obscurePassword = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  // Test credentials
+  final Map<String, String> _testUserCreds = {
+    'email': 'imesh@gmail.com',
+    'password': 'Testuser123',
+  };
+  final Map<String, String> _testAdminCreds = {
+    'email': 'imeshmadushan1333@gmail.com',
+    'password': 'Imesh2005',
+  };
 
   @override
   void initState() {
@@ -73,12 +84,129 @@ class _LoginPageState extends State<LoginPage>
     }
   }
 
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authController = Provider.of<AuthController>(context);
     final theme = Theme.of(context);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('Test Credentials'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // User credentials
+                      ListTile(
+                        title: const Text('Test User'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Email: ${_testUserCreds['email']}',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 20),
+                                  onPressed:
+                                      () => _copyToClipboard(
+                                        _testUserCreds['email']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Password: ${_testUserCreds['password']}',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 20),
+                                  onPressed:
+                                      () => _copyToClipboard(
+                                        _testUserCreds['password']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(),
+                      // Admin credentials
+                      ListTile(
+                        title: const Text('Test Admin'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Email: ${_testAdminCreds['email']}',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 20),
+                                  onPressed:
+                                      () => _copyToClipboard(
+                                        _testAdminCreds['email']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Password: ${_testAdminCreds['password']}',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 20),
+                                  onPressed:
+                                      () => _copyToClipboard(
+                                        _testAdminCreds['password']!,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+          );
+        },
+        child: const Icon(Icons.info_outline),
+      ),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: GestureDetector(

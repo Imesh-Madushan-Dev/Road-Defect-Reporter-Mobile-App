@@ -242,6 +242,7 @@ class ReportDefectPageState extends State<ReportDefectPage>
           'Report Road Defect',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        leading: SizedBox(),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,

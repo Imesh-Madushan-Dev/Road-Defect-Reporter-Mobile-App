@@ -8,13 +8,13 @@ import '../../widgets/custom_text_field.dart'; // Importing the custom text fiel
 import '../../wrappers/error_msg.dart'; // Importing the error message widget
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  const RegisterPage({super.key});
 
   @override
-  _RegisterPageState createState() => _RegisterPageState();
+  RegisterPageState createState() => RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage>
+class RegisterPageState extends State<RegisterPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -65,7 +65,10 @@ class _RegisterPageState extends State<RegisterPage>
       if (success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text(AppConstants.successRegistration)),
+            SnackBar(
+              content: const Text(AppConstants.successRegistration),
+              backgroundColor: Colors.green, // Set background color to green
+            ),
           );
         }
       } else if (mounted && authController.error != null) {
