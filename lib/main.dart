@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/defect_controller.dart';
 import 'controllers/admin_controller.dart';
@@ -9,7 +10,9 @@ import 'screens/auth/register_page.dart';
 import 'screens/defects/defect_list_view.dart';
 import 'screens/defects/report_defect_page.dart';
 import 'screens/admin/admin_dashboard.dart';
+import 'screens/user/profile_page.dart';
 import 'utils/constants.dart';
+import 'wrappers/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,14 +33,16 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: AppConstants.primaryColor,
           ),
           useMaterial3: true,
         ),
-        initialRoute: AppConstants.loginRoute,
+        initialRoute: '/',
         routes: {
+          '/': (context) => const AuthWrapper(),
           AppConstants.loginRoute: (context) => const LoginPage(),
           AppConstants.registerRoute: (context) => const RegisterPage(),
           AppConstants.homeRoute: (context) => const HomePage(),
@@ -50,111 +55,93 @@ class MyApp extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  HomePageState createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final authController = Provider.of<AuthController>(context);
+    final theme = Theme.of(context);
 
-    // If not logged in, redirect to login
+    // Check authentication using the AuthWrapper
     if (authController.user == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, AppConstants.loginRoute);
-      });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const AuthWrapper();
     }
 
     // Define pages for bottom nav
     final List<Widget> pages = [
-      const DefectListView(), // My Reports
-      const ReportDefectPage(), // Report a Defect
-      if (authController.userData?['isAdmin'] == true)
-        const AdminDashboard(), // Admin Dashboard (if admin)
-      _buildProfileView(authController), // Profile
+      const DefectListView(),
+      const ReportDefectPage(),
+      if (authController.userData?['isAdmin'] == true) const AdminDashboard(),
+      const ProfilePage(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: pages),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'My Reports',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle),
-            label: 'Report',
-          ),
-          if (authController.userData?['isAdmin'] == true)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.admin_panel_settings),
-              label: 'Admin',
-            ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
-    );
-  }
-
-  Widget _buildProfileView(AuthController authController) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.account_circle, size: 100, color: Colors.blue),
-            const SizedBox(height: 16),
-            Text(
-              authController.userData?['name'] ?? 'User',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              authController.user?.email ?? 'Email',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            if (authController.userData?['isAdmin'] == true)
-              const Chip(
-                label: Text('Admin'),
-                backgroundColor: Colors.blue,
-                labelStyle: TextStyle(color: Colors.white),
-              ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.logout),
-              label: const Text('Sign Out'),
-              onPressed: () async {
-                await authController.signOut();
-                if (context.mounted) {
-                  Navigator.pushReplacementNamed(
-                    context,
-                    AppConstants.loginRoute,
-                  );
-                }
-              },
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              blurRadius: 10,
+              spreadRadius: 0,
+              offset: const Offset(0, -3),
             ),
           ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            child: SalomonBottomBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              items: [
+                // Reports item
+                SalomonBottomBarItem(
+                  icon: const Icon(Icons.list_alt_rounded),
+                  title: const Text('Reports'),
+                  selectedColor: theme.colorScheme.primary,
+                  unselectedColor: Colors.grey[600],
+                ),
+
+                // Add Report item
+                SalomonBottomBarItem(
+                  icon: const Icon(Icons.add_circle_outline),
+                  title: const Text('Report'),
+                  selectedColor: theme.colorScheme.primary,
+                  unselectedColor: Colors.grey[600],
+                ),
+
+                // Admin Dashboard item (if user admin)
+                if (authController.userData?['isAdmin'] == true)
+                  SalomonBottomBarItem(
+                    icon: const Icon(Icons.admin_panel_settings_outlined),
+                    title: const Text('Admin'),
+                    selectedColor: theme.colorScheme.primary,
+                    unselectedColor: Colors.grey[600],
+                  ),
+
+                // Profile item
+                SalomonBottomBarItem(
+                  icon: const Icon(Icons.person_outline),
+                  title: const Text('Profile'),
+                  selectedColor: theme.colorScheme.primary,
+                  unselectedColor: Colors.grey[600],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

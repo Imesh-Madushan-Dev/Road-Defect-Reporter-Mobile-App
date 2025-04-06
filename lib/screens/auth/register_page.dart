@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../utils/validators.dart';
 import '../../utils/constants.dart';
+import '../../widgets/custom_button.dart'; // Importing the custom button widget
+import '../../widgets/custom_text_field.dart'; // Importing the custom text field widget
+import '../../wrappers/error_msg.dart'; // Importing the error message widget
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -46,31 +49,27 @@ class _RegisterPageState extends State<RegisterPage>
     super.dispose();
   }
 
-  void _register() async {
+  Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      FocusScope.of(context).unfocus();
-
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
-        return;
-      }
+      final name = _nameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
 
       final authController = Provider.of<AuthController>(
         context,
         listen: false,
       );
 
-      final success = await authController.register(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _nameController.text.trim(),
-      );
+      final success = await authController.register(email, password, name);
 
-      if (success && mounted) {
-        // Registration successful, navigate to home
-        Navigator.pushReplacementNamed(context, AppConstants.homeRoute);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text(AppConstants.successRegistration)),
+          );
+        }
+      } else if (mounted && authController.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(authController.error!)));
       }
     }
   }
@@ -150,34 +149,9 @@ class _RegisterPageState extends State<RegisterPage>
 
                     // Error message
                     if (authController.error != null)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.red.shade700,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                authController.error!,
-                                style: TextStyle(color: Colors.red.shade700),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 16),
-                              onPressed: () => authController.clearError(),
-                              color: Colors.red.shade700,
-                            ),
-                          ],
-                        ),
+                      ErrorMessage(
+                        message: authController.error!,
+                        onDismiss: () => authController.clearError(),
                       ),
 
                     // Form
@@ -186,155 +160,68 @@ class _RegisterPageState extends State<RegisterPage>
                       child: Column(
                         children: [
                           // Name field
-                          TextFormField(
+                          CustomTextField(
                             controller: _nameController,
-                            keyboardType: TextInputType.name,
-                            textCapitalization: TextCapitalization.words,
-                            style: TextStyle(color: Colors.grey[800]),
-                            decoration: InputDecoration(
-                              labelText: 'Full Name',
-                              hintText: 'Enter your full name',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
-                            validator:
-                                (value) => Validators.validateName(value),
+                            labelText: 'Full Name',
+                            hintText: 'Enter your full name',
+                            prefixIcon: Icons.person_outline,
+                            validator: (value) => Validators.validateName(value),
                           ),
                           const SizedBox(height: 16),
 
                           // Email field
-                          TextFormField(
+                          CustomTextField(
                             controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(color: Colors.grey[800]),
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              hintText: 'Enter your email address',
-                              prefixIcon: const Icon(Icons.email_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
-                            validator:
-                                (value) => Validators.validateEmail(value),
+                            labelText: 'Email',
+                            hintText: 'Enter your email address',
+                            prefixIcon: Icons.email_outlined,
+                            validator: (value) => Validators.validateEmail(value),
                           ),
                           const SizedBox(height: 16),
 
                           // Password field
-                          TextFormField(
+                          CustomTextField(
                             controller: _passwordController,
+                            labelText: 'Password',
+                            hintText: 'Enter your password',
+                            prefixIcon: Icons.lock_outline,
                             obscureText: _obscurePassword,
-                            style: TextStyle(color: Colors.grey[800]),
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              hintText: 'Enter your password',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: Colors.grey[600],
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: Colors.grey[600],
                               ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
                             ),
-                            validator:
-                                (value) => Validators.validatePassword(value),
+                            validator: (value) => Validators.validatePassword(value),
                           ),
                           const SizedBox(height: 16),
 
                           // Confirm Password field
-                          TextFormField(
+                          CustomTextField(
                             controller: _confirmPasswordController,
+                            labelText: 'Confirm Password',
+                            hintText: 'Confirm your password',
+                            prefixIcon: Icons.lock_clock,
                             obscureText: _obscureConfirmPassword,
-                            style: TextStyle(color: Colors.grey[800]),
-                            decoration: InputDecoration(
-                              labelText: 'Confirm Password',
-                              hintText: 'Confirm your password',
-                              prefixIcon: const Icon(Icons.lock_clock),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureConfirmPassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: Colors.grey[600],
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscureConfirmPassword =
-                                        !_obscureConfirmPassword;
-                                  });
-                                },
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirmPassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: Colors.grey[600],
                               ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
+                              onPressed: () {
+                                setState(() {
+                                  _obscureConfirmPassword = !_obscureConfirmPassword;
+                                });
+                              },
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -349,47 +236,10 @@ class _RegisterPageState extends State<RegisterPage>
                           const SizedBox(height: 24),
 
                           // Register button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed:
-                                  authController.isLoading ? null : _register,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                disabledBackgroundColor: theme
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.6),
-                                disabledForegroundColor: Colors.white70,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child:
-                                  authController.isLoading
-                                      ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : const Text(
-                                        'REGISTER',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                            ),
+                          CustomButton(
+                            text: 'REGISTER',
+                            onPressed: authController.isLoading ? null : _register,
+                            isLoading: authController.isLoading,
                           ),
                         ],
                       ),
