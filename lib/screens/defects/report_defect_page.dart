@@ -175,8 +175,6 @@ class ReportDefectPageState extends State<ReportDefectPage>
     );
   }
 
-  
-
   void _submitReport() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedImages.isEmpty) {
@@ -218,14 +216,19 @@ class ReportDefectPageState extends State<ReportDefectPage>
       );
 
       if (success && mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Defect report submitted successfully')),
+          SnackBar(
+            content: const Text('Defect report submitted successfully'),
+            backgroundColor: Colors.green, // Set background color to green
+          ),
         );
       } else if (mounted && defectController.error != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(defectController.error!)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(defectController.error!),
+            backgroundColor: Colors.redAccent, // Set background color to green
+          ),
+        );
       }
     }
   }
